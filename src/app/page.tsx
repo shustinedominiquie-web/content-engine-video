@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const Home: NextPage = () => {
+  const goToDashboard = () => router.push("/dashboard");
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -32,6 +33,11 @@ const Home: NextPage = () => {
 
   return (
     <PageLayout>
+      <div style={{ position: "fixed", top: 16, right: 16, zIndex: 50 }}>
+        <button onClick={goToDashboard} style={{ padding: "10px 20px", background: "#818cf8", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+          Content Engine Dashboard
+        </button>
+      </div>
       <LandingPageInput
         onNavigate={handleNavigate}
         isNavigating={isNavigating}

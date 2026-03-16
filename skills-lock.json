@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-video-gen": {
+      "source": "heygen-com/skills",
+      "sourceType": "github",
+      "computedHash": "800382614ffda9818bf753bb8ba6b92fdaaa7a0a35e6bd43571166890462a4be"
+    },
+    "avatar-video": {
+      "source": "heygen-com/skills",
+      "sourceType": "github",
+      "computedHash": "66a49290a0412d7bad634aac7e9cc24c5722ea6f508d6427e19ac2241bce8740"
+    },
+    "create-video": {
+      "source": "heygen-com/skills",
+      "sourceType": "github",
+      "computedHash": "cc85de7d334304112e35863409f0ea0c0bb66b80223f21583fd3c5158930db8d"
+    },
+    "text-to-speech": {
+      "source": "heygen-com/skills",
+      "sourceType": "github",
+      "computedHash": "2e0788af3677cb61ba03ae9d5861982fe18d59084901da92beea9a52fb95a0fb"
+    },
+    "video-download": {
+      "source": "heygen-com/skills",
+      "sourceType": "github",
+      "computedHash": "07ec3543f6bfeb4a0dce4086c018fbee3ab747ac68b8ba475c87050d3212d31b"
+    }
+  }
+}

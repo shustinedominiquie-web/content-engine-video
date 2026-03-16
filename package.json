@@ -77,6 +77,7 @@
     "lint": "eslint .",
     "remotion": "remotion studio",
     "render": "remotion render",
+    "amp-commercial": "node --experimental-strip-types scripts/generate-amp-commercial.ts",
     "deploy": "node deploy.mjs"
   }
 }
