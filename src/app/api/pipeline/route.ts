@@ -1,79 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
-const HEYGEN_API_KEY = process.env.NEXT_PUBLIC_HEYGEN_API_KEY || "";
-const CLAUDE_API_KEY = process.env.NEXT_PUBLIC_CLAUDE_API_KEY || "";
-
-async function genScript(title: string, platform: string, avatarName: string, voiceName: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
+async function genScript(topic: string, avatarName: string) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
-      "x-api-key": CLAUDE_API_KEY,
-      "anthropic-version": "2023-06-01",
+      'x-api-key': process.env.NEXT_PUBLIC_CLAUDE_API_KEY || '',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [{
-        role: "user",
-        content: "You are a conversational video scriptwriter for Advantage Media Partners. Write a script that sounds like a real person talking naturally on camera. Use contractions. Short punchy sentences. Natural pauses with ... for breathing room. Rhetorical questions. Enthusiastic but not cheesy. 60-90 seconds when spoken.\n\nTitle: " + title + "\nPlatform: " + platform + "\nAvatar: " + avatarName + "\nVoice: " + voiceName + "\n\nReturn ONLY the script text."
-      }]
-    })
-  });
-  if (!res.ok) throw new Error("Claude error: " + await res.text());
-  const data = await res.json();
-  return data.content[0].text;
-}
-
-async function submitVideo(script: string, avatarId: string, voiceId: string, isTalkingPhoto: boolean, w: number, h: number): Promise<string> {
-  const character = isTalkingPhoto
-    ? { type: "talking_photo" as const, talking_photo_id: avatarId }
-    : { type: "avatar" as const, avatar_id: avatarId, avatar_style: "normal" };
-  const res = await fetch("https://api.heygen.com/v2/video/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Api-Key": HEYGEN_API_KEY },
-    body: JSON.stringify({
-      title: "AMP Commercial",
-      video_inputs: [{ character, voice: { type: "text", input_text: script, voice_id: voiceId }, background: { type: "color", value: "#0A1628" } }],
-      dimension: { width: w, height: h },
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: 'Generate a short engaging 45-second video script for ' + avatarName + ' about: ' + topic + '. Conversational and natural. Under 120 words. Spoken words only.' }]
     }),
   });
-  const json = await res.json();
-  if (json.error || !json.data?.video_id) throw new Error("HeyGen: " + JSON.stringify(json));
-  return json.data.video_id;
+  const data = await response.json();
+  return data.content?.[0]?.text || 'Failed to generate script';
 }
 
-async function pollVideo(videoId: string): Promise<string> {
-  for (let i = 0; i < 120; i++) {
-    await new Promise(r => setTimeout(r, 10000));
-    const res = await fetch("https://api.heygen.com/v2/videos/" + videoId, {
-      headers: { "X-Api-Key": HEYGEN_API_KEY, "Content-Type": "application/json" },
-    });
-    const json = await res.json();
-    if (json.data?.status === "completed" && json.data?.video_url) return json.data.video_url;
-    if (json.data?.status === "failed") throw new Error("HeyGen failed: " + json.data?.failure_message);
+async function submitVideo(script: string, avatarId: string, voiceId: string, format: string) {
+  const isTalkingPhoto = avatarId.length === 32;
+  const dim = format === 'reel' ? {width:1080,height:1920} : format === 'square' ? {width:1080,height:1080} : {width:1920,height:1080};
+  const character = isTalkingPhoto ? {type:'talking_photo',talking_photo_id:avatarId} : {type:'avatar',avatar_id:avatarId,scale:1};
+  const res = await fetch('https://api.heygen.com/v2/video/generate', {
+    method: 'POST',
+    headers: {'X-Api-Key': process.env.NEXT_PUBLIC_HEYGEN_API_KEY||'', 'Content-Type':'application/json'},
+    body: JSON.stringify({video_inputs:[{character,voice:{type:'text',input_text:script,voice_id:voiceId},background:{type:'color',value:'#1a1a2e'}}],dimension:dim,aspect_ratio:null}),
+  });
+  const data = await res.json();
+  if (!data.data?.video_id) throw new Error('HeyGen error: ' + JSON.stringify(data));
+  return data.data.video_id;
+}
+
+async function pollVideo(videoId: string) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const res = await fetch('https://api.heygen.com/v1/video_status.get?video_id=' + videoId, {headers:{'X-Api-Key':process.env.NEXT_PUBLIC_HEYGEN_API_KEY||''}});
+    const data = await res.json();
+    if (data.data?.status === 'completed') return data.data.video_url;
+    if (data.data?.status === 'failed') throw new Error('Video generation failed');
   }
-  throw new Error("HeyGen timed out");
+  throw new Error('Timed out');
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { step } = body;
-    if (step === "script") {
-      const script = await genScript(body.title, body.platform, body.avatarName, body.voiceName);
-      return NextResponse.json({ script });
-    }
-    if (step === "heygen") {
-      const videoId = await submitVideo(body.script, body.avatarId, body.voiceId, body.isTalkingPhoto, body.width || 1080, body.height || 1920);
-      return NextResponse.json({ videoId });
-    }
-    if (step === "poll") {
-      const videoUrl = await pollVideo(body.videoId);
-      return NextResponse.json({ videoUrl });
-    }
-    return NextResponse.json({ error: "Unknown step" }, { status: 400 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
+    if (body.step === 'script') { const script = await genScript(body.topic||'AI Marketing Tips', body.avatarName||'Host'); return NextResponse.json({script}); }
+    if (body.step === 'heygen') { const videoId = await submitVideo(body.script, body.avatarId, body.voiceId, body.format||'reel'); return NextResponse.json({videoId}); }
+    if (body.step === 'poll') { const videoUrl = await pollVideo(body.videoId); return NextResponse.json({videoUrl}); }
+    return NextResponse.json({error:'Unknown step'},{status:400});
+  } catch(e) { const msg = e instanceof Error ? e.message : String(e); return NextResponse.json({error:msg},{status:500}); }
 }

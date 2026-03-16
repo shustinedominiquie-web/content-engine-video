@@ -65,7 +65,6 @@ export default function DashboardPage() {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [voices, setVoices] = useState<HeyGenVoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [pollingIntervals, setPollingIntervals] = useState<Record<number, NodeJS.Timeout>>({});
   const [pipelineStatus, setPipelineStatus] = useState<Record<number, string>>({});
