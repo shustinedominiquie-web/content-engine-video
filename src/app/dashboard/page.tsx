@@ -261,50 +261,58 @@ export default function DashboardPage() {
         remotionBucket: bucketName,
       });
 
-      // Step 5: Poll Remotion progress
-      let done = false;
-      while (!done) {
-        await new Promise((r) => setTimeout(r, 3000));
-        const progRes = await fetch("/api/lambda/progress", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: renderId, bucketName }),
-        });
-        const progData = await progRes.json();
-        if (progData.type === "error") throw new Error(progData.message);
-        const inner = progData.data;
-        if (inner.type === "error") throw new Error(inner.message);
-        if (inner.type === "done") {
-          updateItem(item.id, {
-            remotionVideoUrl: inner.url,
-            status: "in_review",
-            generationProgress: 100,
-            remotionProgress: 100,
-          });
-          done = true;
-        } else if (inner.type === "progress") {
-          const pct = Math.round(60 + inner.progress * 40);
-          updateItem(item.id, {
-            generationProgress: pct,
-            remotionProgress: Math.round(inner.progress * 100),
-          });
-          setPipelineStatus((p) => ({
-            ...p,
-            [item.id]: `Remotion rendering... ${Math.round(inner.progress * 100)}%`,
-          }));
-        }
-      }
+     // Step 5: Robust Polling for Remotion progress
+let done = false;
+let attempts = 0;
+const MAX_ATTEMPTS = 200; // Total safety cap (approx 10 mins)
 
+while (!done && attempts < MAX_ATTEMPTS) {
+  attempts++;
+  
+  // Wait 3 seconds between polls
+  await new Promise((r) => setTimeout(r, 3000));
+
+  try {
+    const progRes = await fetch("/api/lambda/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: renderId, bucketName }),
+    });
+
+    if (!progRes.ok) throw new Error(`HTTP Error: ${progRes.status}`);
+
+    const progData = await progRes.json();
+    if (progData.type === "error") throw new Error(progData.message);
+
+    const inner = progData.data;
+    if (inner.type === "error") throw new Error(inner.message);
+
+    if (inner.type === "done") {
+      updateItem(item.id, {
+        remotionVideoUrl: inner.url,
+        status: "in_review",
+        generationProgress: 100,
+        remotionProgress: 100,
+      });
+      done = true;
+    } else if (inner.type === "progress") {
+      const pct = Math.round(60 + inner.progress * 40);
+      updateItem(item.id, {
+        generationProgress: pct,
+        remotionProgress: Math.round(inner.progress * 100),
+      });
+      
       setPipelineStatus((p) => ({
         ...p,
-        [item.id]: "Pipeline complete! Commercial ready for review.",
+        [item.id]: `Remotion rendering... ${Math.round(inner.progress * 100)}%`,
       }));
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setPipelineStatus((p) => ({ ...p, [item.id]: "Error: " + msg }));
-      updateItem(item.id, { status: "draft" });
     }
-  };
+  } catch (pollError) {
+    console.error("Polling attempt failed:", pollError);
+    // We don't throw here so the loop can try again if it's just a network flicker
+    if (attempts >= MAX_ATTEMPTS) throw new Error("Rendering timed out.");
+  }
+}
 
   // ─── Individual: Generate Script ──────────────────────────────────────────
   const handleGenerateScript = async (item: ContentItem) => {
