@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const maxDuration = 10;
+
 const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY || process.env.NEXT_PUBLIC_HEYGEN_API_KEY || "";
 
 export async function GET() {
@@ -10,10 +12,12 @@ export async function GET() {
 
     const headers = { Accept: "application/json", "X-Api-Key": HEYGEN_API_KEY };
 
+    const signal = AbortSignal.timeout(8000);
+
     const [pubRes, privRes, voiceRes] = await Promise.all([
-      fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers }),
-      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers }),
-      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers }),
+      fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers, signal }),
+      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers, signal }),
+      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers, signal }),
     ]);
 
     if (!pubRes.ok) {
