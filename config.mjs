@@ -4,7 +4,7 @@
  */
 export const REGION = "us-east-1";
 
-export const SITE_NAME = "https://remotionlambda-useast1-oav2tl72mc.s3.us-east-1.amazonaws.com/sites/content-engine/index.html";
-export const RAM = 2048;
+export const SITE_NAME = "content-engine";
+export const RAM = 3009;
 export const DISK = 2048;
-export const TIMEOUT = 120;
+export const TIMEOUT = 240;
