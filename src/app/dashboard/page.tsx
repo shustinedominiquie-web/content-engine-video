@@ -37,7 +37,7 @@ type HeyGenVoice = {
   name: string;
 };
 
-// ─── Preferred avatars & voice ────────────────────────────────────────────────
+// âââ Preferred avatars & voice ââââââââââââââââââââââââââââââââââââââââââââââââ
 const PREFERRED_AVATARS = [
   { name: "Shustine smith7", keyword: "shustine" },
   { name: "David", keyword: "david" },
@@ -65,7 +65,7 @@ function findPreferredVoice(voices: HeyGenVoice[]): HeyGenVoice | undefined {
   return voices[0];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// âââ Constants ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const PLATFORMS = ["Twitter", "LinkedIn", "Facebook", "Instagram", "TikTok"];
 const PLATFORM_COLORS: Record<string, string> = {
   Twitter: "#1DA1F2",
@@ -92,11 +92,19 @@ export default function DashboardPage() {
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [pipelineStatus, setPipelineStatus] = useState<Record<number, string>>({});
 
-  // ─── Load HeyGen data via server-side proxy ───────────────────────────────
+  // âââ Load HeyGen data via server-side proxy âââââââââââââââââââââââââââââââ
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch("/api/heygen-data");
+        // 5-second client timeout so dashboard loads fast even if HeyGen is slow
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 5000);
+        let res: Response;
+        try {
+          res = await fetch("/api/heygen-data", { signal: controller.signal });
+        } finally {
+          clearTimeout(tid);
+        }
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
@@ -159,7 +167,7 @@ export default function DashboardPage() {
     [],
   );
 
-  // ─── Full Pipeline: Script → HeyGen → Remotion ────────────────────────────
+  // âââ Full Pipeline: Script â HeyGen â Remotion ââââââââââââââââââââââââââââ
   const runFullPipeline = async (item: ContentItem) => {
     if (!item.title) {
       alert("Add a title first");
@@ -296,7 +304,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ─── Individual: Generate Script ──────────────────────────────────────────
+  // âââ Individual: Generate Script ââââââââââââââââââââââââââââââââââââââââââ
   const handleGenerateScript = async (item: ContentItem) => {
     updateItem(item.id, { status: "generating_script" });
     try {
@@ -321,7 +329,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ─── Individual: Generate HeyGen Video ────────────────────────────────────
+  // âââ Individual: Generate HeyGen Video ââââââââââââââââââââââââââââââââââââ
   const handleGenerateVideo = async (item: ContentItem) => {
     if (!item.script) {
       alert("Generate a script first!");
@@ -387,7 +395,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ─── Individual: Render Remotion Commercial ───────────────────────────────
+  // âââ Individual: Render Remotion Commercial âââââââââââââââââââââââââââââââ
   const handleCreateRemotionVideo = async (item: ContentItem) => {
     if (!item.videoUrl) {
       alert("Generate a HeyGen video first!");
@@ -550,7 +558,7 @@ export default function DashboardPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Video Generator</h1>
-                <p style={{ color: "#888", margin: "4px 0 0" }}>Pipeline: Claude Script → HeyGen Avatar → Remotion Commercial</p>
+                <p style={{ color: "#888", margin: "4px 0 0" }}>Pipeline: Claude Script â HeyGen Avatar â Remotion Commercial</p>
               </div>
               <button onClick={handleAddItem} style={{ padding: "10px 20px", background: "#818cf8", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
                 + Add Content
@@ -680,7 +688,7 @@ export default function DashboardPage() {
                   <button onClick={() => runFullPipeline(editingItem)}
                     disabled={pipelineStatus[editingItem.id]?.includes("...")}
                     style={{ padding: "10px 20px", background: "linear-gradient(135deg, #ef4444, #f59e0b)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, opacity: pipelineStatus[editingItem.id]?.includes("...") ? 0.6 : 1 }}>
-                    {pipelineStatus[editingItem.id]?.includes("...") ? pipelineStatus[editingItem.id] : "Run Full Pipeline (Script → HeyGen → Remotion)"}
+                    {pipelineStatus[editingItem.id]?.includes("...") ? pipelineStatus[editingItem.id] : "Run Full Pipeline (Script â HeyGen â Remotion)"}
                   </button>
                   {editingItem.videoUrl && (
                     <button onClick={() => handleCreateRemotionVideo(editingItem)}
