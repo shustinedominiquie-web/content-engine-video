@@ -37,7 +37,7 @@ type HeyGenVoice = {
   name: string;
 };
 
-// âââ Preferred avatars & voice ââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Preferred avatars & voice Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 const PREFERRED_AVATARS = [
   { name: "Shustine smith7", keyword: "shustine" },
   { name: "David", keyword: "david" },
@@ -65,7 +65,7 @@ function findPreferredVoice(voices: HeyGenVoice[]): HeyGenVoice | undefined {
   return voices[0];
 }
 
-// âââ Constants ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Constants Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 const PLATFORMS = ["Twitter", "LinkedIn", "Facebook", "Instagram", "TikTok"];
 const PLATFORM_COLORS: Record<string, string> = {
   Twitter: "#1DA1F2",
@@ -85,14 +85,38 @@ const VIDEO_FORMATS = [
 
 export default function DashboardPage() {
   const [view, setView] = useState("generator");
-  const [items, setItems] = useState<ContentItem[]>([]);
+  const [items, setItems] = useState<ContentItem[]>(() =>
+    Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1,
+      title: ["5 AI Marketing Trends","Social Media ROI","Brand Voice Guide","Video Content Tips","Audience Growth"][i],
+      platform: PLATFORMS[i % PLATFORMS.length],
+      date: new Date(Date.now() + i * 86400000).toISOString().split("T")[0],
+      status: "draft",
+      avatar: "",
+      avatarId: "",
+      voice: "",
+      voiceId: "",
+      script: "",
+      videoUrl: null,
+      heygenVideoId: null,
+      generationProgress: 0,
+      is_talking_photo: false,
+      format: "reel",
+      formatWidth: 1080,
+      formatHeight: 1920,
+      remotionRenderId: null,
+      remotionBucket: null,
+      remotionProgress: 0,
+      remotionVideoUrl: null,
+    }))
+  );
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [voices, setVoices] = useState<HeyGenVoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [pipelineStatus, setPipelineStatus] = useState<Record<number, string>>({});
 
-  // âââ Load HeyGen data via server-side proxy âââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Load HeyGen data via server-side proxy Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   useEffect(() => {
     async function loadData() {
       try {
@@ -112,40 +136,18 @@ export default function DashboardPage() {
         const vcs: HeyGenVoice[] = data.voices || [];
         setAvatars(avs);
         setVoices(vcs);
-
         const defaultAvatar = findPreferredAvatar(avs);
         const defaultVoice = findPreferredVoice(vcs);
-
-        const mockItems: ContentItem[] = Array.from({ length: 5 }, (_, i) => ({
-          id: i + 1,
-          title: [
-            "5 AI Marketing Trends",
-            "Social Media ROI",
-            "Brand Voice Guide",
-            "Video Content Tips",
-            "Audience Growth",
-          ][i],
-          platform: PLATFORMS[i % PLATFORMS.length],
-          date: new Date(Date.now() + i * 86400000).toISOString().split("T")[0],
-          status: "draft",
-          avatar: defaultAvatar?.avatar_name || "Default",
-          avatarId: defaultAvatar?.avatar_id || "",
-          voice: defaultVoice?.name || "Default",
-          voiceId: defaultVoice?.voice_id || "",
-          script: "",
-          videoUrl: null,
-          heygenVideoId: null,
-          generationProgress: 0,
-          is_talking_photo: defaultAvatar?.is_talking_photo || false,
-          format: "reel",
-          formatWidth: 1080,
-          formatHeight: 1920,
-          remotionRenderId: null,
-          remotionBucket: null,
-          remotionProgress: 0,
-          remotionVideoUrl: null,
-        }));
-        setItems(mockItems);
+        setItems((prev) =>
+          prev.map((item) => ({
+            ...item,
+            avatar: defaultAvatar?.avatar_name || item.avatar,
+            avatarId: defaultAvatar?.avatar_id || item.avatarId,
+            voice: defaultVoice?.name || item.voice,
+            voiceId: defaultVoice?.voice_id || item.voiceId,
+            is_talking_photo: defaultAvatar?.is_talking_photo ?? item.is_talking_photo,
+          }))
+        );
       } catch (e) {
         console.error("Failed to load HeyGen data:", e);
       } finally {
@@ -167,7 +169,7 @@ export default function DashboardPage() {
     [],
   );
 
-  // âââ Full Pipeline: Script â HeyGen â Remotion ââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Full Pipeline: Script Ã¢ÂÂ HeyGen Ã¢ÂÂ Remotion Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const runFullPipeline = async (item: ContentItem) => {
     if (!item.title) {
       alert("Add a title first");
@@ -304,7 +306,7 @@ export default function DashboardPage() {
     }
   };
 
-  // âââ Individual: Generate Script ââââââââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Individual: Generate Script Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const handleGenerateScript = async (item: ContentItem) => {
     updateItem(item.id, { status: "generating_script" });
     try {
@@ -329,7 +331,7 @@ export default function DashboardPage() {
     }
   };
 
-  // âââ Individual: Generate HeyGen Video ââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Individual: Generate HeyGen Video Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const handleGenerateVideo = async (item: ContentItem) => {
     if (!item.script) {
       alert("Generate a script first!");
@@ -395,7 +397,7 @@ export default function DashboardPage() {
     }
   };
 
-  // âââ Individual: Render Remotion Commercial âââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Individual: Render Remotion Commercial Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const handleCreateRemotionVideo = async (item: ContentItem) => {
     if (!item.videoUrl) {
       alert("Generate a HeyGen video first!");
@@ -558,7 +560,7 @@ export default function DashboardPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Video Generator</h1>
-                <p style={{ color: "#888", margin: "4px 0 0" }}>Pipeline: Claude Script â HeyGen Avatar â Remotion Commercial</p>
+                <p style={{ color: "#888", margin: "4px 0 0" }}>Pipeline: Claude Script Ã¢ÂÂ HeyGen Avatar Ã¢ÂÂ Remotion Commercial</p>
               </div>
               <button onClick={handleAddItem} style={{ padding: "10px 20px", background: "#818cf8", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
                 + Add Content
@@ -688,7 +690,7 @@ export default function DashboardPage() {
                   <button onClick={() => runFullPipeline(editingItem)}
                     disabled={pipelineStatus[editingItem.id]?.includes("...")}
                     style={{ padding: "10px 20px", background: "linear-gradient(135deg, #ef4444, #f59e0b)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, opacity: pipelineStatus[editingItem.id]?.includes("...") ? 0.6 : 1 }}>
-                    {pipelineStatus[editingItem.id]?.includes("...") ? pipelineStatus[editingItem.id] : "Run Full Pipeline (Script â HeyGen â Remotion)"}
+                    {pipelineStatus[editingItem.id]?.includes("...") ? pipelineStatus[editingItem.id] : "Run Full Pipeline (Script Ã¢ÂÂ HeyGen Ã¢ÂÂ Remotion)"}
                   </button>
                   {editingItem.videoUrl && (
                     <button onClick={() => handleCreateRemotionVideo(editingItem)}
