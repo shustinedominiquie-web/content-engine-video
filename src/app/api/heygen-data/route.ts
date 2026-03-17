@@ -14,12 +14,11 @@ export async function GET() {
     }
 
     const headers = { Accept: "application/json", "X-Api-Key": HEYGEN_API_KEY };
-    const signal = AbortSignal.timeout(20000);
 
     const [pubResult, privResult, voiceResult] = await Promise.allSettled([
-      fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers, signal }),
-      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers, signal }),
-      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers, signal }),
+      fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers }),
+      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers }),
+      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers }),
     ]);
 
     const pubRes = pubResult.status === "fulfilled" ? pubResult.value : null;
@@ -27,8 +26,10 @@ export async function GET() {
     const voiceRes = voiceResult.status === "fulfilled" ? voiceResult.value : null;
 
     if (!pubRes || !pubRes.ok) {
-      const errText = pubRes ? await pubRes.text() : "Request failed";
-      return NextResponse.json({ error: "HeyGen avatars error: " + errText }, { status: 500 });
+      const pubErr = pubResult.status === "rejected"
+        ? String((pubResult as PromiseRejectedResult).reason)
+        : (pubRes ? await pubRes.text() : "no response");
+      return NextResponse.json({ error: "HeyGen public avatars failed: " + pubErr }, { status: 500 });
     }
 
     const pubData = await pubRes.json();
