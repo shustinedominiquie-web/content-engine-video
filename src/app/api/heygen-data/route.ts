@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 10;
+export const runtime = "edge";
+export const maxDuration = 25;
 
-const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY || process.env.NEXT_PUBLIC_HEYGEN_API_KEY || "";
+const HEYGEN_API_KEY = (
+  process.env.HEYGEN_API_KEY || process.env.NEXT_PUBLIC_HEYGEN_API_KEY || ""
+).trim();
 
 export async function GET() {
   try {
@@ -11,17 +14,21 @@ export async function GET() {
     }
 
     const headers = { Accept: "application/json", "X-Api-Key": HEYGEN_API_KEY };
+    const signal = AbortSignal.timeout(20000);
 
-    const signal = AbortSignal.timeout(8000);
-
-    const [pubRes, privRes, voiceRes] = await Promise.all([
+    const [pubResult, privResult, voiceResult] = await Promise.allSettled([
       fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers, signal }),
       fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers, signal }),
       fetch("https://api.heygen.com/v2/voices", { method: "GET", headers, signal }),
     ]);
 
-    if (!pubRes.ok) {
-      return NextResponse.json({ error: "HeyGen avatars error: " + (await pubRes.text()) }, { status: 500 });
+    const pubRes = pubResult.status === "fulfilled" ? pubResult.value : null;
+    const privRes = privResult.status === "fulfilled" ? privResult.value : null;
+    const voiceRes = voiceResult.status === "fulfilled" ? voiceResult.value : null;
+
+    if (!pubRes || !pubRes.ok) {
+      const errText = pubRes ? await pubRes.text() : "Request failed";
+      return NextResponse.json({ error: "HeyGen avatars error: " + errText }, { status: 500 });
     }
 
     const pubData = await pubRes.json();
@@ -38,7 +45,7 @@ export async function GET() {
 
     let privAvatars: Record<string, unknown>[] = [];
     let privPhotos: Record<string, unknown>[] = [];
-    if (privRes.ok) {
+    if (privRes?.ok) {
       const privData = await privRes.json();
       privAvatars = (privData.data?.avatars || []).map((a: Record<string, unknown>) => ({
         avatar_id: a.avatar_id,
@@ -53,7 +60,7 @@ export async function GET() {
     }
 
     let voices: Record<string, unknown>[] = [];
-    if (voiceRes.ok) {
+    if (voiceRes?.ok) {
       const voiceData = await voiceRes.json();
       voices = (voiceData.data?.voices || []).map((v: Record<string, unknown>) => ({
         voice_id: v.voice_id,
