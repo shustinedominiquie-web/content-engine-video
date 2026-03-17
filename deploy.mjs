@@ -11,6 +11,18 @@ import { webpackOverride } from "./src/remotion/webpack-override.mjs";
 console.log("Selected region:", REGION);
 dotenv.config({quiet: true});
 
+// Trim whitespace from AWS credentials to prevent ERR_INVALID_CHAR in auth headers
+for (const key of [
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "REMOTION_AWS_ACCESS_KEY_ID",
+  "REMOTION_AWS_SECRET_ACCESS_KEY",
+]) {
+  if (process.env[key]) {
+    process.env[key] = process.env[key].trim();
+  }
+}
+
 if (!process.env.AWS_ACCESS_KEY_ID && !process.env.REMOTION_AWS_ACCESS_KEY_ID) {
   console.log(
     'The environment variable "REMOTION_AWS_ACCESS_KEY_ID" is not set.',
