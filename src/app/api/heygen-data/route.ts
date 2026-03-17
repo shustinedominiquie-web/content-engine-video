@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
-export const maxDuration = 25;
+export const maxDuration = 10;
 
 const HEYGEN_API_KEY = (
   process.env.HEYGEN_API_KEY || process.env.NEXT_PUBLIC_HEYGEN_API_KEY || ""
@@ -14,36 +13,31 @@ export async function GET() {
     }
 
     const headers = { Accept: "application/json", "X-Api-Key": HEYGEN_API_KEY };
+    const signal = AbortSignal.timeout(8000);
 
-    // Only fetch private avatars (user's own custom avatars like Shustine, David)
-    // Skipping public /v2/avatars — it returns thousands of avatars and times out
-    const [privResult, voiceResult] = await Promise.allSettled([
-      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers }),
-      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers }),
+    // Use v1 API - lighter responses, faster than v2
+    const [avatarResult, voiceResult] = await Promise.allSettled([
+      fetch("https://api.heygen.com/v1/avatar.list", { method: "GET", headers, signal }),
+      fetch("https://api.heygen.com/v1/voice.list", { method: "GET", headers, signal }),
     ]);
 
-    const privRes = privResult.status === "fulfilled" ? privResult.value : null;
+    const avatarRes = avatarResult.status === "fulfilled" ? avatarResult.value : null;
     const voiceRes = voiceResult.status === "fulfilled" ? voiceResult.value : null;
 
-    if (!privRes) {
-      const err = privResult.status === "rejected"
-        ? String((privResult as PromiseRejectedResult).reason)
-        : "no response";
-      return NextResponse.json({ error: "HeyGen private avatars failed: " + err }, { status: 500 });
+    if (!avatarRes || !avatarRes.ok) {
+      const err = avatarResult.status === "rejected"
+        ? String((avatarResult as PromiseRejectedResult).reason)
+        : (avatarRes ? await avatarRes.text() : "no response");
+      return NextResponse.json({ error: "HeyGen avatars failed: " + err }, { status: 500 });
     }
 
-    if (!privRes.ok) {
-      const errText = await privRes.text();
-      return NextResponse.json({ error: "HeyGen private avatars error: " + errText }, { status: 500 });
-    }
-
-    const privData = await privRes.json();
-    const privAvatars = (privData.data?.avatars || []).map((a: Record<string, unknown>) => ({
+    const avatarData = await avatarRes.json();
+    const avatars = (avatarData.data?.avatars || []).map((a: Record<string, unknown>) => ({
       avatar_id: a.avatar_id,
       avatar_name: a.avatar_name,
       is_talking_photo: false,
     }));
-    const privPhotos = (privData.data?.talking_photos || []).map((p: Record<string, unknown>) => ({
+    const talkingPhotos = (avatarData.data?.talking_photos || []).map((p: Record<string, unknown>) => ({
       avatar_id: p.talking_photo_id,
       avatar_name: (p.talking_photo_name || "Photo") + " (Photo)",
       is_talking_photo: true,
@@ -52,14 +46,14 @@ export async function GET() {
     let voices: Record<string, unknown>[] = [];
     if (voiceRes?.ok) {
       const voiceData = await voiceRes.json();
-      voices = (voiceData.data?.voices || []).map((v: Record<string, unknown>) => ({
+      voices = (voiceData.data?.voices || voiceData.data?.voice_list || []).map((v: Record<string, unknown>) => ({
         voice_id: v.voice_id,
-        name: v.name,
+        name: v.name || v.language_name,
       }));
     }
 
     return NextResponse.json({
-      avatars: [...privPhotos, ...privAvatars],
+      avatars: [...talkingPhotos, ...avatars],
       voices,
     });
   } catch (e) {
