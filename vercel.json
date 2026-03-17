@@ -1,1 +1,1 @@
-{"buildCommand": "next build"}
+{"buildCommand": "node deploy.mjs && next build"}
