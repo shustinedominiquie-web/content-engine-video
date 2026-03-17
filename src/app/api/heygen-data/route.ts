@@ -15,31 +15,32 @@ export async function GET() {
 
     const headers = { Accept: "application/json", "X-Api-Key": HEYGEN_API_KEY };
 
-    const [avatarResult, voiceResult] = await Promise.allSettled([
-      fetch("https://api.heygen.com/v1/avatar.list", { method: "GET", headers }),
-      fetch("https://api.heygen.com/v1/voice.list", { method: "GET", headers }),
+    // Use v2 API — fetch only private/custom avatars (avoids massive public list)
+    const [privResult, voiceResult] = await Promise.allSettled([
+      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers }),
+      fetch("https://api.heygen.com/v2/voices", { method: "GET", headers }),
     ]);
 
-    const avatarRes = avatarResult.status === "fulfilled" ? avatarResult.value : null;
+    const privRes = privResult.status === "fulfilled" ? privResult.value : null;
     const voiceRes = voiceResult.status === "fulfilled" ? voiceResult.value : null;
 
-    if (!avatarRes || !avatarRes.ok) {
+    if (!privRes || !privRes.ok) {
       const err =
-        avatarResult.status === "rejected"
-          ? String((avatarResult as PromiseRejectedResult).reason)
-          : avatarRes
-          ? await avatarRes.text()
+        privResult.status === "rejected"
+          ? String((privResult as PromiseRejectedResult).reason)
+          : privRes
+          ? await privRes.text()
           : "no response";
       return NextResponse.json({ error: "HeyGen avatars failed: " + err }, { status: 500 });
     }
 
-    const avatarData = await avatarRes.json();
-    const avatars = (avatarData.data?.avatars || []).map((a: Record<string, unknown>) => ({
+    const privData = await privRes.json();
+    const avatars = (privData.data?.avatars || []).map((a: Record<string, unknown>) => ({
       avatar_id: a.avatar_id,
       avatar_name: a.avatar_name,
       is_talking_photo: false,
     }));
-    const talkingPhotos = (avatarData.data?.talking_photos || []).map(
+    const talkingPhotos = (privData.data?.talking_photos || []).map(
       (p: Record<string, unknown>) => ({
         avatar_id: p.talking_photo_id,
         avatar_name: (p.talking_photo_name || "Photo") + " (Photo)",
@@ -50,12 +51,10 @@ export async function GET() {
     let voices: Record<string, unknown>[] = [];
     if (voiceRes?.ok) {
       const voiceData = await voiceRes.json();
-      voices = (voiceData.data?.voices || voiceData.data?.voice_list || []).map(
-        (v: Record<string, unknown>) => ({
-          voice_id: v.voice_id,
-          name: v.name || v.language_name,
-        })
-      );
+      voices = (voiceData.data?.voices || []).map((v: Record<string, unknown>) => ({
+        voice_id: v.voice_id,
+        name: v.name,
+      }));
     }
 
     return NextResponse.json({ avatars: [...talkingPhotos, ...avatars], voices });
