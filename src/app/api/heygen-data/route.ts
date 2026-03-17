@@ -18,7 +18,7 @@ export async function GET() {
 
     // Use v2 API — fetch only private/custom avatars (avoids massive public list)
     const [privResult, voiceResult] = await Promise.allSettled([
-      fetch("https://api.heygen.com/v2/avatars?type=private", { method: "GET", headers }),
+      fetch("https://api.heygen.com/v2/avatars", { method: "GET", headers }),
       fetch("https://api.heygen.com/v2/voices", { method: "GET", headers }),
     ]);
 
