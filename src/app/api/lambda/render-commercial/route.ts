@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { avatarVideoUrl, width, height, durationInFrames } = body;
 
-    if (!avatarVideoUrl) {
+    if (!avatarVideoUrl) 
       return NextResponse.json(
         { type: "error", message: "avatarVideoUrl is required" },
         { status: 400 },
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       region: REGION as AwsRegion,
       serveUrl: SITE_NAME,
       composition: "AMPCommercial",
-      inputProps: { avatarVideoUrl },
+      inputProps: { avatarVideoUrl , width, height, durationInFrames},
       framesPerLambda: 60,
       downloadBehavior: {
         type: "download",
