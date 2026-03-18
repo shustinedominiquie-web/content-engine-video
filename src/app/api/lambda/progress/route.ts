@@ -24,15 +24,21 @@ export const POST = executeApi<ProgressResponse, typeof ProgressRequest>(
     if (renderProgress.fatalErrorEncountered) {
       return {
         type: "error",
-        message: renderProgress.errors[0].message,
+        message: renderProgress.errors[0]?.message ?? "An unknown render error occurred",
       };
     }
 
     if (renderProgress.done) {
+      if (!renderProgress.outputFile) {
+        return {
+          type: "error",
+          message: "Render completed but no output file was produced",
+        };
+      }
       return {
         type: "done",
-        url: renderProgress.outputFile as string,
-        size: renderProgress.outputSizeInBytes as number,
+        url: renderProgress.outputFile,
+        size: renderProgress.outputSizeInBytes ?? 0,
       };
     }
 

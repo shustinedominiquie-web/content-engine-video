@@ -18,11 +18,12 @@ export const DynamicComp: React.FC = () => {
   const [handle] = useState(() => delayRender("Compiling code..."));
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
+  // Step 1: compile the code and set state
   useEffect(() => {
     try {
       const result = compileCode(code);
-
       if (result.error) {
         setError(result.error);
       } else {
@@ -31,9 +32,17 @@ export const DynamicComp: React.FC = () => {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
+      setIsReady(true);
+    }
+  }, [code]);
+
+  // Step 2: only call continueRender AFTER React has re-rendered with the new
+  // Component or error state — prevents Remotion from capturing blank frames
+  useEffect(() => {
+    if (isReady) {
       continueRender(handle);
     }
-  }, [code, handle]);
+  }, [isReady, handle]);
 
   if (error) {
     return (

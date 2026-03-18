@@ -3,8 +3,11 @@ import { Composition } from "remotion";
 import { DynamicComp } from "./DynamicComp";
 import { AMPCommercial } from "./compositions/AMPCommercial";
 
+// Block-body arrow function so extractComponentBody can parse it correctly
 const defaultCode = `import { AbsoluteFill } from "remotion";
-export const MyAnimation = () => <AbsoluteFill style={{ backgroundColor: "#000" }} />;`;
+export const MyAnimation = () => {
+  return <AbsoluteFill style={{ backgroundColor: "#000" }} />;
+};`;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -16,10 +19,10 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-        defaultProps={{ code: defaultCode }}
+        defaultProps={{ code: defaultCode, durationInFrames: 180, fps: 30 }}
         calculateMetadata={({ props }) => ({
-          durationInFrames: props.durationInFrames as number,
-          fps: props.fps as number,
+          durationInFrames: (props.durationInFrames as number) ?? 180,
+          fps: (props.fps as number) ?? 30,
         })}
       />
       <Composition

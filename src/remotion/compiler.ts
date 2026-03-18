@@ -12,13 +12,22 @@ import { fade } from "@remotion/transitions/fade";
 import { flip } from "@remotion/transitions/flip";
 import { slide } from "@remotion/transitions/slide";
 import { wipe } from "@remotion/transitions/wipe";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AbsoluteFill,
+  Audio,
+  Freeze,
   Img,
+  Loop,
+  OffthreadVideo,
   Sequence,
+  Series,
+  Video,
   interpolate,
+  interpolateColors,
+  random,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -62,14 +71,42 @@ function extractComponentBody(code: string): string {
 
   cleaned = cleaned.trim();
 
-  // Extract body from "export const MyAnimation = () => { ... };"
-  const match = cleaned.match(
-    /^([\s\S]*?)export\s+const\s+\w+\s*=\s*\(\s*\)\s*=>\s*\{([\s\S]*)\};?\s*$/,
+  // Match all common export const arrow function patterns:
+  //   export const MyAnimation = () => { ... }
+  //   export const MyAnimation: React.FC = () => { ... }
+  //   export const MyAnimation = (): JSX.Element => { ... }
+  //   export const MyAnimation = () => <div/>   (expression body)
+  const exportMatch = cleaned.match(
+    /^([\s\S]*?)export\s+const\s+\w+(?:\s*:\s*[^=]+)?\s*=\s*\([^)]*\)(?:\s*:\s*[^=>{]+)?\s*=>\s*([\s\S]*)$/,
   );
 
-  if (match) {
-    const helpers = match[1].trim();
-    const body = match[2].trim();
+  if (exportMatch) {
+    const helpers = exportMatch[1].trim();
+    let body = exportMatch[2].trim();
+
+    if (body.startsWith("{")) {
+      // Block body — find the matching closing brace using depth tracking
+      let depth = 0;
+      let endIndex = -1;
+      for (let i = 0; i < body.length; i++) {
+        if (body[i] === "{") depth++;
+        else if (body[i] === "}") {
+          depth--;
+          if (depth === 0) {
+            endIndex = i;
+            break;
+          }
+        }
+      }
+      if (endIndex !== -1) {
+        body = body.slice(1, endIndex).trim();
+      }
+    } else {
+      // Expression body — strip trailing semicolon and wrap in return
+      body = body.replace(/;?\s*$/, "");
+      body = `return (\n  ${body}\n);`;
+    }
+
     return helpers ? `${helpers}\n\n${body}` : body;
   }
 
@@ -98,11 +135,20 @@ export function compileCode(code: string): CompilationResult {
     const Remotion = {
       AbsoluteFill,
       interpolate,
+      interpolateColors,
       useCurrentFrame,
       useVideoConfig,
       spring,
       Sequence,
+      Series,
+      Loop,
+      Freeze,
       Img,
+      Video,
+      Audio,
+      OffthreadVideo,
+      staticFile,
+      random,
     };
 
     const wrappedCode = `${transpiled.code}\nreturn DynamicAnimation;`;
@@ -114,17 +160,30 @@ export function compileCode(code: string): CompilationResult {
       "Lottie",
       "ThreeCanvas",
       "THREE",
+      // Core Remotion
       "AbsoluteFill",
       "interpolate",
+      "interpolateColors",
       "useCurrentFrame",
       "useVideoConfig",
       "spring",
       "Sequence",
+      "Series",
+      "Loop",
+      "Freeze",
       "Img",
+      "Video",
+      "Audio",
+      "OffthreadVideo",
+      "staticFile",
+      "random",
+      // React hooks
       "useState",
       "useEffect",
       "useMemo",
       "useRef",
+      "useCallback",
+      // Shapes
       "Rect",
       "Circle",
       "Triangle",
@@ -160,17 +219,30 @@ export function compileCode(code: string): CompilationResult {
       Lottie,
       ThreeCanvas,
       THREE,
+      // Core Remotion
       AbsoluteFill,
       interpolate,
+      interpolateColors,
       useCurrentFrame,
       useVideoConfig,
       spring,
       Sequence,
+      Series,
+      Loop,
+      Freeze,
       Img,
+      Video,
+      Audio,
+      OffthreadVideo,
+      staticFile,
+      random,
+      // React hooks
       useState,
       useEffect,
       useMemo,
       useRef,
+      useCallback,
+      // Shapes
       RemotionShapes.Rect,
       RemotionShapes.Circle,
       RemotionShapes.Triangle,

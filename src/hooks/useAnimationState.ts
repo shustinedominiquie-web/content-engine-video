@@ -45,7 +45,9 @@ export function useAnimationState(initialCode: string = "") {
     if (initialCode) {
       compileCode(initialCode);
     }
-  }, []);
+    // compileCode is stable (empty useCallback deps), initialCode is the mount-time value
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode, compileCode]);
 
   return {
     ...state,
