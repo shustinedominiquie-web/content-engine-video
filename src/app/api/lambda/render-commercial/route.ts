@@ -9,7 +9,9 @@ import { DISK, RAM, REGION, SITE_NAME, TIMEOUT } from "../../../../../config.mjs
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { avatarVideoUrl, width, height, durationInFrames } = body;
+    const { avatarVideoUrl, width, height, durationInFrames, template } = body;
+    // template: "AMPCommercial" (30s, 9:16 dark) | "SEOExplainer" (2min, white/green)
+    const compositionId = template === "SEOExplainer" ? "SEOExplainer" : "AMPCommercial";
 
     if (!avatarVideoUrl)  {
       return NextResponse.json(
@@ -59,8 +61,14 @@ export async function POST(req: Request) {
       }),
       region: REGION as AwsRegion,
       serveUrl: SITE_NAME,
-      composition: "AMPCommercial",
-      inputProps: { avatarVideoUrl , width, height, durationInFrames},
+      composition: compositionId,
+      inputProps: {
+        avatarVideoUrl,
+        width,
+        height,
+        // SEO Explainer defaults to 3600 frames (2 min); AMP defaults to 900 (30s)
+        durationInFrames: durationInFrames ?? (compositionId === "SEOExplainer" ? 3600 : 900),
+      },
       framesPerLambda: 60,
       downloadBehavior: {
         type: "download",

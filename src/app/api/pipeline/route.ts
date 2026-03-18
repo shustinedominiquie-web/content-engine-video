@@ -49,11 +49,23 @@ Return ONLY the script text.`
   return data.content?.[0]?.text || 'Failed to generate script';
 }
 
+// Strip [Stage Direction] and [B-roll: ...] annotations — HeyGen only speaks pure text.
+// Removes anything inside square brackets: [Animated logo], [B-roll: person typing], etc.
+function stripStageDirections(script: string): string {
+  return script
+    .replace(/\[([^\]]*)\]/g, '')   // remove [anything in brackets]
+    .replace(/\n{3,}/g, '\n\n')     // collapse triple+ newlines
+    .trim();
+}
+
 // Fixed: accepts isTalkingPhoto flag explicitly instead of guessing from avatarId.length === 32
 async function submitVideo(script: string, avatarId: string, voiceId: string, width: number, height: number, isTalkingPhoto: boolean) {
   const character = isTalkingPhoto
     ? { type: 'talking_photo', talking_photo_id: avatarId }
     : { type: 'avatar', avatar_id: avatarId, scale: 1 };
+
+  // Clean the script before sending — HeyGen cannot speak stage directions
+  const spokenText = stripStageDirections(script);
 
   const res = await fetch('https://api.heygen.com/v2/video/generate', {
     method: 'POST',
@@ -61,7 +73,7 @@ async function submitVideo(script: string, avatarId: string, voiceId: string, wi
     body: JSON.stringify({
       video_inputs: [{
         character,
-        voice: { type: 'text', input_text: script, voice_id: voiceId },
+        voice: { type: 'text', input_text: spokenText, voice_id: voiceId },
         background: { type: 'color', value: '#1a1a2e' },
       }],
       dimension: { width, height },

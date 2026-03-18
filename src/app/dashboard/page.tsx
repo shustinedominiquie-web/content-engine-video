@@ -20,6 +20,7 @@ type ContentItem = {
   format: string;
   formatWidth: number;
   formatHeight: number;
+  remotionTemplate: string;   // "AMPCommercial" | "SEOExplainer"
   remotionRenderId: string | null;
   remotionBucket: string | null;
   remotionProgress: number;
@@ -122,6 +123,7 @@ export default function DashboardPage() {
       format: "reel",
       formatWidth: 1080,
       formatHeight: 1920,
+      remotionTemplate: "AMPCommercial",
       remotionRenderId: null,
       remotionBucket: null,
       remotionProgress: 0,
@@ -290,7 +292,14 @@ export default function DashboardPage() {
       const res = await fetch("/api/lambda/render-commercial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ avatarVideoUrl: item.videoUrl, width: item.formatWidth, height: item.formatHeight }),
+        body: JSON.stringify({
+          avatarVideoUrl: item.videoUrl,
+          width: item.formatWidth,
+          height: item.formatHeight,
+          template: item.remotionTemplate,
+          // SEO Explainer is 2 min (3600 frames); AMP Commercial is 30s (900 frames)
+          durationInFrames: item.remotionTemplate === "SEOExplainer" ? 3600 : 900,
+        }),
       });
       const data = await res.json();
       if (data.type === "error") throw new Error(data.message);
@@ -359,6 +368,7 @@ export default function DashboardPage() {
       format: "reel",
       formatWidth: 1080,
       formatHeight: 1920,
+      remotionTemplate: "AMPCommercial",
       remotionRenderId: null,
       remotionBucket: null,
       remotionProgress: 0,
@@ -572,13 +582,35 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Remotion Template */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 4 }}>
+                    Remotion Template
+                    <span style={{ marginLeft: 8, color: "#666", fontWeight: 400 }}>
+                      {editingItem.remotionTemplate === "SEOExplainer" ? "— 2 min · white/green · step cards + rankings" : "— 30 sec · dark navy · 5 trend cards"}
+                    </span>
+                  </label>
+                  <select
+                    value={editingItem.remotionTemplate}
+                    onChange={(e) => updateItem(editingItem.id, { remotionTemplate: e.target.value })}
+                    style={{ width: "100%", padding: 8, background: "#0a0a1a", border: "1px solid #333", borderRadius: 6, color: "#fff" }}>
+                    <option value="AMPCommercial">🎬 AI Marketing Trends Commercial (30 sec · dark navy)</option>
+                    <option value="SEOExplainer">📈 SEO Explainer (2 min · white/green · step cards)</option>
+                  </select>
+                </div>
+
                 {/* Script */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 4 }}>Script</label>
+                  <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 4 }}>
+                    Script
+                    <span style={{ marginLeft: 8, color: "#666", fontWeight: 400, fontSize: 11 }}>
+                      Tip: Paste a full production brief with [Stage Directions] — they&apos;ll be stripped before sending to HeyGen
+                    </span>
+                  </label>
                   <textarea value={editingItem.script}
                     onChange={(e) => updateItem(editingItem.id, { script: e.target.value })}
-                    rows={6} placeholder="Click 'Step 1 — Generate Script' or type your own..."
-                    style={{ width: "100%", padding: 8, background: "#0a0a1a", border: "1px solid #333", borderRadius: 6, color: "#fff", resize: "vertical", boxSizing: "border-box" }} />
+                    rows={8} placeholder={'Paste your script here, or click Step 1 to generate one.\n\nYou can include [Stage Directions] — they\'ll be removed before HeyGen speaks the text.'}
+                    style={{ width: "100%", padding: 8, background: "#0a0a1a", border: "1px solid #333", borderRadius: 6, color: "#fff", resize: "vertical", boxSizing: "border-box", fontSize: 13 }} />
                 </div>
 
                 {/* ── 3-step buttons ── */}
