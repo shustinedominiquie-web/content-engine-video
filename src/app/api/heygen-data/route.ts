@@ -38,9 +38,11 @@ export async function GET() {
 
     const avatarData = await avatarResult.value.json();
     const allAvatars: Record<string, unknown>[] = avatarData.data?.avatars || [];
-    const allPhotos: Record<string, unknown>[] = avatarData.data?.talking_photos || [];
+    // NOTE: We intentionally skip talking_photos — HeyGen's talking_photos array contains
+    // thousands of public stock photos that all use UUID IDs (indistinguishable from private).
+    // Shustine's custom avatars are all in the avatars array with UUID IDs.
 
-    // Only keep private (custom) avatars — deduplicate by avatar_id
+    // Only keep private (custom) avatars: UUID IDs = private, named IDs (Abigail_...) = public stock
     const privateAvatars = allAvatars
       .filter((a) => isPrivateId(a.avatar_id))
       .filter((a, i, arr) => arr.findIndex((b) => b.avatar_id === a.avatar_id) === i)
@@ -48,15 +50,6 @@ export async function GET() {
         avatar_id: a.avatar_id as string,
         avatar_name: a.avatar_name as string,
         is_talking_photo: false,
-      }));
-
-    const privateTalkingPhotos = allPhotos
-      .filter((p) => isPrivateId(p.talking_photo_id))
-      .filter((p, i, arr) => arr.findIndex((b) => b.talking_photo_id === p.talking_photo_id) === i)
-      .map((p) => ({
-        avatar_id: p.talking_photo_id as string,
-        avatar_name: ((p.talking_photo_name as string) || "Photo") + " (Photo)",
-        is_talking_photo: true,
       }));
 
     // ── Voices ────────────────────────────────────────────────────────────
@@ -69,8 +62,7 @@ export async function GET() {
       }));
     }
 
-    const avatars = [...privateTalkingPhotos, ...privateAvatars];
-    return NextResponse.json({ avatars, voices });
+    return NextResponse.json({ avatars: privateAvatars, voices });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });
