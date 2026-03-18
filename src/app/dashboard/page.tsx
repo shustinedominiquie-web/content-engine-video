@@ -39,8 +39,8 @@ type HeyGenVoice = {
 
 // ─── Preferred avatars & voice ────────────────────────────────────────────────
 const PREFERRED_AVATARS = [
-  { name: "Shustine smith7", keyword: "shustine" },
-  { name: "David", keyword: "david" },
+  { name: "Shustine Smith7", keyword: "shustine" },
+  { name: "david2", keyword: "david" },
 ];
 const PREFERRED_VOICE_ID = "SHUSTINE27";
 const PREFERRED_VOICE_KEYWORD = "shustine";
@@ -144,7 +144,7 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 8000);
+        const tid = setTimeout(() => controller.abort(), 15000);
         let res: Response;
         try {
           res = await fetch("/api/heygen-data", { signal: controller.signal });
