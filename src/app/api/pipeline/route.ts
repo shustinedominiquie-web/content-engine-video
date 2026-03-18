@@ -12,9 +12,36 @@ async function genScript(title: string, platform: string, avatarName: string, vo
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      // Fixed: was 'claude-sonnet-4-20250514' which is an invalid model string
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      messages: [{ role: 'user', content: `You are a conversational video scriptwriter for Advantage Media Partners. Write a script that sounds like a real person talking naturally on camera \u2014 NOT like an essay or article. Use contractions (don't, we're, it's, you'll). Use short punchy sentences. Add natural pauses with '...' for breathing room. Ask rhetorical questions. Sound enthusiastic but not cheesy. The script should be 60-90 seconds when spoken for:\n\nTitle: \${title}\nPlatform: \${platform}\nAvatar presenter: \${avatarName}\nVoice style: \${voiceName}\n\nRules:\n- Start with a hook in the first 5 seconds\n- Keep sentences short and punchy\n- End with a clear call to action\n- Match the tone to the platform\n- Write ONLY the words the presenter will speak\n\nReturn ONLY the script text.` }]
+      messages: [{
+        role: 'user',
+        content: `You are a conversational video scriptwriter for Advantage Media Partners. Write a script that sounds like a real person talking naturally on camera - NOT like an essay or article. Use contractions (don't, we're, it's, you'll). Use short punchy sentences. Add natural pauses with '...' for breathing room. Ask rhetorical questions. Sound enthusiastic but not cheesy.
+
+CRITICAL: The video is exactly 25 seconds long. The script must be spoken in 20-25 seconds - roughly 50-65 words total. Do NOT write more than 65 words.
+
+The video displays these 5 AI marketing trends as on-screen graphics while you speak. Reference them naturally in order:
+1. AI-powered content creation
+2. Predictive customer analytics
+3. Hyper-personalization at scale
+4. Conversational AI marketing
+5. AI-generated video production
+
+Title: ${title}
+Platform: ${platform}
+Avatar presenter: ${avatarName}
+Voice style: ${voiceName}
+
+Rules:
+- Start with a hook in the first 3 seconds
+- Briefly mention each of the 5 trends - the graphics will show them on screen
+- End with a clear call to action pointing to advantagemediapartners.com
+- Write ONLY the words the presenter will speak
+- MAXIMUM 65 words
+
+Return ONLY the script text.`
+      }]
     }),
   });
   if (!response.ok) throw new Error('Claude API error: ' + (await response.text()));
@@ -22,8 +49,8 @@ async function genScript(title: string, platform: string, avatarName: string, vo
   return data.content?.[0]?.text || 'Failed to generate script';
 }
 
-async function submitVideo(script: string, avatarId: string, voiceId: string, width: number, height: number) {
-  const isTalkingPhoto = avatarId.length === 32;
+// Fixed: accepts isTalkingPhoto flag explicitly instead of guessing from avatarId.length === 32
+async function submitVideo(script: string, avatarId: string, voiceId: string, width: number, height: number, isTalkingPhoto: boolean) {
   const character = isTalkingPhoto
     ? { type: 'talking_photo', talking_photo_id: avatarId }
     : { type: 'avatar', avatar_id: avatarId, scale: 1 };
@@ -77,7 +104,7 @@ export async function POST(req: Request) {
     if (body.step === 'script') {
       const script = await genScript(
         body.title || 'AI Marketing Tips',
-        body.platform || 'Twitter',
+        body.platform || 'LinkedIn',
         body.avatarName || 'Host',
         body.voiceName || 'Default',
       );
@@ -87,7 +114,9 @@ export async function POST(req: Request) {
     if (body.step === 'heygen') {
       const width = body.width || 1080;
       const height = body.height || 1920;
-      const videoId = await submitVideo(body.script, body.avatarId, body.voiceId, width, height);
+      // Fixed: use the isTalkingPhoto flag sent from the dashboard instead of guessing from ID length
+      const isTalkingPhoto = Boolean(body.isTalkingPhoto);
+      const videoId = await submitVideo(body.script, body.avatarId, body.voiceId, width, height, isTalkingPhoto);
       return NextResponse.json({ videoId });
     }
 
