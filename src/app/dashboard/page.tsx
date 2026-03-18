@@ -440,36 +440,76 @@ export default function DashboardPage() {
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = ""; // reset before async so the same file can be re-imported
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      const lines = text.trim().split(/\r?\n/);
+
+      // Proper CSV field parser — handles quoted fields that contain commas
+      const parseCSVLine = (line: string): string[] => {
+        const fields: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } // escaped ""
+            else { inQuotes = !inQuotes; }
+          } else if (ch === "," && !inQuotes) {
+            fields.push(current.trim());
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        fields.push(current.trim());
+        return fields;
+      };
+
+      // Filter out blank lines (handles trailing newlines and blank rows)
+      const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
       if (lines.length < 2) { alert("CSV must have a header row and at least one data row."); return; }
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+
+      const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
       const get = (row: string[], col: string) => {
         const idx = headers.indexOf(col);
-        if (idx === -1) return "";
-        return (row[idx] || "").trim().replace(/^"|"$/g, "");
+        return idx === -1 ? "" : (row[idx] || "").trim();
       };
-      // Use functional update to get current nextId, assign sequential IDs
-      setNextId((currentId) => {
-        const newItems: ContentItem[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const row = lines[i].split(",");
-          const title = get(row, "title") || `Imported Item ${i}`;
-          const rawPlatform = get(row, "platform");
-          const platform = PLATFORMS.find((p) => p.toLowerCase() === rawPlatform.toLowerCase()) || "LinkedIn";
-          const date = get(row, "date") || new Date().toISOString().split("T")[0];
-          const script = get(row, "script") || "";
-          newItems.push(buildItem(currentId + i - 1, { title, platform, date, script }));
-        }
-        setItems((prev) => [...prev, ...newItems]);
-        setTimeout(() => alert(`Imported ${newItems.length} item${newItems.length === 1 ? "" : "s"} from CSV.`), 0);
-        return currentId + lines.length - 1;
+
+      // Capture avatar/voice now — not inside any state updater callback
+      const defaultAvatar = findPreferredAvatar(avatars);
+      const defaultVoice = findPreferredVoice(voices);
+      const startId = nextId;
+
+      const newItems: ContentItem[] = lines.slice(1).map((line, i) => {
+        const row = parseCSVLine(line);
+        const title = get(row, "title") || `Imported Item ${i + 1}`;
+        const rawPlatform = get(row, "platform");
+        const platform = PLATFORMS.find((p) => p.toLowerCase() === rawPlatform.toLowerCase()) || "LinkedIn";
+        const date = get(row, "date") || new Date().toISOString().split("T")[0];
+        const script = get(row, "script") || "";
+        return {
+          id: startId + i,
+          title, platform, date, script,
+          status: "draft",
+          avatar: defaultAvatar?.avatar_name || "",
+          avatarId: defaultAvatar?.avatar_id || "",
+          voice: defaultVoice?.name || "",
+          voiceId: defaultVoice?.voice_id || "",
+          videoUrl: null, heygenVideoId: null, generationProgress: 0,
+          is_talking_photo: defaultAvatar?.is_talking_photo || false,
+          format: "reel", formatWidth: 1080, formatHeight: 1920,
+          remotionTemplate: "AMPCommercial",
+          remotionRenderId: null, remotionBucket: null, remotionProgress: 0, remotionVideoUrl: null,
+        };
       });
+
+      // Update items and nextId independently — no nested state setters
+      setItems((prev) => [...prev, ...newItems]);
+      setNextId(startId + newItems.length);
+      alert(`Imported ${newItems.length} item${newItems.length === 1 ? "" : "s"} from CSV.`);
     };
     reader.readAsText(file);
-    e.target.value = "";
   };
 
   const drafts = items.filter((i) => i.status === "draft" || i.status === "generating_script");
