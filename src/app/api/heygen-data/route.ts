@@ -42,9 +42,15 @@ export async function GET() {
     // thousands of public stock photos that all use UUID IDs (indistinguishable from private).
     // Shustine's custom avatars are all in the avatars array with UUID IDs.
 
-    // Only keep private (custom) avatars: UUID IDs = private, named IDs (Abigail_...) = public stock
+    // Keep only Shustine's private avatars:
+    // - UUID-format ID  →  excludes public stock VIDEO avatars (they use named IDs like Abigail_...)
+    // - Name does NOT end with " (Photo)"  →  excludes public stock PHOTO avatars (HeyGen appends
+    //   " (Photo)" to ALL public photo-type avatars in data.avatars, but Shustine's own avatars
+    //   don't have that suffix)
+    // - Deduplicate by avatar_id (API sometimes returns the same avatar twice)
     const privateAvatars = allAvatars
       .filter((a) => isPrivateId(a.avatar_id))
+      .filter((a) => !String(a.avatar_name || "").endsWith(" (Photo)"))
       .filter((a, i, arr) => arr.findIndex((b) => b.avatar_id === a.avatar_id) === i)
       .map((a) => ({
         avatar_id: a.avatar_id as string,
