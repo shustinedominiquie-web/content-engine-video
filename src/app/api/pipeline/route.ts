@@ -12,35 +12,48 @@ async function genScript(title: string, platform: string, avatarName: string, vo
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // Fixed: was 'claude-sonnet-4-20250514' which is an invalid model string
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `You are a conversational video scriptwriter for Advantage Media Partners. Write a script that sounds like a real person talking naturally on camera - NOT like an essay or article. Use contractions (don't, we're, it's, you'll). Use short punchy sentences. Add natural pauses with '...' for breathing room. Ask rhetorical questions. Sound enthusiastic but not cheesy.
+        content: `You are a professional video scriptwriter for Advantage Media Partners. Write a social media video script about: "${title}"
 
-CRITICAL: The video is exactly 25 seconds long. The script must be spoken in 20-25 seconds - roughly 50-65 words total. Do NOT write more than 65 words.
+FORMAT — use this exact structure with [Stage Directions] in square brackets:
 
-The video displays these 5 AI marketing trends as on-screen graphics while you speak. Reference them naturally in order:
-1. AI-powered content creation
-2. Predictive customer analytics
-3. Hyper-personalization at scale
-4. Conversational AI marketing
-5. AI-generated video production
+[Opening visual: animated logo reveal, clean background]
 
-Title: ${title}
-Platform: ${platform}
-Avatar presenter: ${avatarName}
-Voice style: ${voiceName}
+<Hook — 1-2 punchy sentences that grab attention in the first 3 seconds>
 
-Rules:
-- Start with a hook in the first 3 seconds
-- Briefly mention each of the 5 trends - the graphics will show them on screen
-- End with a clear call to action pointing to advantagemediapartners.com
-- Write ONLY the words the presenter will speak
-- MAXIMUM 65 words
+[Graphic: relevant on-screen visual or text overlay]
 
-Return ONLY the script text.`
+<Main point 1 — spoken naturally, 1-3 sentences>
+
+[Graphic/B-roll: supporting visual]
+
+<Main point 2 — spoken naturally, 1-3 sentences>
+
+[Graphic/B-roll: supporting visual]
+
+<Main point 3 — spoken naturally, 1-3 sentences>
+
+[Lower third: key stat, quote, or URL]
+
+<Call to action — direct the viewer to advantagemediapartners.com>
+
+[Outro: logo + website URL on screen]
+
+RULES:
+- Platform: ${platform}
+- Avatar presenter: ${avatarName}
+- Voice style: ${voiceName}
+- [Stage Directions] in square brackets describe on-screen visuals — they are NOT spoken aloud
+- Spoken words (outside brackets) should total 60-100 words — natural, conversational, use contractions
+- Use short punchy sentences. Sound like a real person, not a press release.
+- Always end with a CTA mentioning advantagemediapartners.com
+- Tailor the content, examples, and visuals to the specific topic: "${title}"
+- Do NOT reuse generic "AI trends" content — write specifically about this topic
+
+Return ONLY the formatted script. No preamble, no explanation.`
       }]
     }),
   });

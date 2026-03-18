@@ -102,34 +102,72 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
+const STORAGE_KEY = "amp-content-engine-items";
+const STORAGE_NEXT_ID_KEY = "amp-content-engine-next-id";
+
+function makeDefaultItems(): ContentItem[] {
+  return Array.from({ length: 5 }, (_, i) => ({
+    id: i + 1,
+    title: ["5 AI Marketing Trends","Social Media ROI","Brand Voice Guide","Video Content Tips","Audience Growth"][i],
+    platform: PLATFORMS[i % PLATFORMS.length],
+    date: new Date(Date.now() + i * 86400000).toISOString().split("T")[0],
+    status: "draft",
+    avatar: "",
+    avatarId: "",
+    voice: "",
+    voiceId: "",
+    script: "",
+    videoUrl: null,
+    heygenVideoId: null,
+    generationProgress: 0,
+    is_talking_photo: false,
+    format: "reel",
+    formatWidth: 1080,
+    formatHeight: 1920,
+    remotionTemplate: "AMPCommercial",
+    remotionRenderId: null,
+    remotionBucket: null,
+    remotionProgress: 0,
+    remotionVideoUrl: null,
+  }));
+}
+
+function loadItemsFromStorage(): ContentItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return makeDefaultItems();
+    const parsed: ContentItem[] = JSON.parse(raw);
+    // Reset any in-progress statuses (page was refreshed mid-generation)
+    return parsed.map((item) => ({
+      ...item,
+      status: ["generating", "generating_script", "rendering_remotion"].includes(item.status) ? "draft" : item.status,
+      generationProgress: 0,
+      remotionProgress: 0,
+    }));
+  } catch {
+    return makeDefaultItems();
+  }
+}
+
+function getNextId(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_NEXT_ID_KEY);
+    return raw ? parseInt(raw, 10) : 6;
+  } catch {
+    return 6;
+  }
+}
+
 export default function DashboardPage() {
   const [view, setView] = useState("generator");
-  const [items, setItems] = useState<ContentItem[]>(() =>
-    Array.from({ length: 5 }, (_, i) => ({
-      id: i + 1,
-      title: ["5 AI Marketing Trends","Social Media ROI","Brand Voice Guide","Video Content Tips","Audience Growth"][i],
-      platform: PLATFORMS[i % PLATFORMS.length],
-      date: new Date(Date.now() + i * 86400000).toISOString().split("T")[0],
-      status: "draft",
-      avatar: "",
-      avatarId: "",
-      voice: "",
-      voiceId: "",
-      script: "",
-      videoUrl: null,
-      heygenVideoId: null,
-      generationProgress: 0,
-      is_talking_photo: false,
-      format: "reel",
-      formatWidth: 1080,
-      formatHeight: 1920,
-      remotionTemplate: "AMPCommercial",
-      remotionRenderId: null,
-      remotionBucket: null,
-      remotionProgress: 0,
-      remotionVideoUrl: null,
-    }))
-  );
+  const [items, setItems] = useState<ContentItem[]>(() => {
+    if (typeof window === "undefined") return makeDefaultItems();
+    return loadItemsFromStorage();
+  });
+  const [nextId, setNextId] = useState<number>(() => {
+    if (typeof window === "undefined") return 6;
+    return getNextId();
+  });
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [voices, setVoices] = useState<HeyGenVoice[]>([]);
   const [avatarsLoading, setAvatarsLoading] = useState(true);
@@ -140,6 +178,19 @@ export default function DashboardPage() {
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
+
+  // ─── Persist items to localStorage on every change ────────────────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch { /* quota exceeded or private mode */ }
+  }, [items]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_NEXT_ID_KEY, String(nextId));
+    } catch { /* ignore */ }
+  }, [nextId]);
 
   // ─── Load HeyGen data in background (non-blocking) ───────────────────────
   useEffect(() => {
@@ -346,12 +397,11 @@ export default function DashboardPage() {
     if (editingItem?.id === id) setEditingItem(null);
   };
 
-  const handleAddItem = () => {
+  const buildItem = (id: number, overrides: Partial<ContentItem> = {}): ContentItem => {
     const defaultAvatar = findPreferredAvatar(avatars);
     const defaultVoice = findPreferredVoice(voices);
-    const newId = Math.max(0, ...items.map((i) => i.id)) + 1;
-    const newItem: ContentItem = {
-      id: newId,
+    return {
+      id,
       title: "New Content",
       platform: "Twitter",
       date: new Date().toISOString().split("T")[0],
@@ -373,9 +423,53 @@ export default function DashboardPage() {
       remotionBucket: null,
       remotionProgress: 0,
       remotionVideoUrl: null,
+      ...overrides,
     };
+  };
+
+  const handleAddItem = () => {
+    const newItem = buildItem(nextId);
+    setNextId((n) => n + 1);
     setItems((prev) => [...prev, newItem]);
     setEditingItem(newItem);
+  };
+
+  // ─── CSV Import ──────────────────────────────────────────────────────────
+  // Expected columns (case-insensitive): title, platform, date, script
+  // date format: YYYY-MM-DD  |  platform: Twitter/LinkedIn/Facebook/Instagram/TikTok
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) { alert("CSV must have a header row and at least one data row."); return; }
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+      const get = (row: string[], col: string) => {
+        const idx = headers.indexOf(col);
+        if (idx === -1) return "";
+        return (row[idx] || "").trim().replace(/^"|"$/g, "");
+      };
+      // Use functional update to get current nextId, assign sequential IDs
+      setNextId((currentId) => {
+        const newItems: ContentItem[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const row = lines[i].split(",");
+          const title = get(row, "title") || `Imported Item ${i}`;
+          const rawPlatform = get(row, "platform");
+          const platform = PLATFORMS.find((p) => p.toLowerCase() === rawPlatform.toLowerCase()) || "LinkedIn";
+          const date = get(row, "date") || new Date().toISOString().split("T")[0];
+          const script = get(row, "script") || "";
+          newItems.push(buildItem(currentId + i - 1, { title, platform, date, script }));
+        }
+        setItems((prev) => [...prev, ...newItems]);
+        setTimeout(() => alert(`Imported ${newItems.length} item${newItems.length === 1 ? "" : "s"} from CSV.`), 0);
+        return currentId + lines.length - 1;
+      });
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const drafts = items.filter((i) => i.status === "draft" || i.status === "generating_script");
@@ -433,6 +527,7 @@ export default function DashboardPage() {
         {[
           { id: "generator", label: "🎬 Video Generator" },
           { id: "calendar", label: "📅 Content Calendar" },
+          { id: "library", label: "📼 Video Library" },
           { id: "review", label: "👁 Review Queue" },
           { id: "settings", label: "⚙️ Settings" },
         ].map((nav) => (
@@ -455,9 +550,15 @@ export default function DashboardPage() {
                 <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Video Generator</h1>
                 <p style={{ color: "#888", margin: "4px 0 0" }}>3-step pipeline: Generate Script → HeyGen Avatar → Remotion Commercial</p>
               </div>
-              <button onClick={handleAddItem} style={{ padding: "10px 20px", background: "#818cf8", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
-                + Add Content
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <label style={{ padding: "10px 20px", background: "#1a1a3a", color: "#818cf8", border: "1px solid #818cf8", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}>
+                  📥 Import CSV
+                  <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
+                </label>
+                <button onClick={handleAddItem} style={{ padding: "10px 20px", background: "#818cf8", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                  + Add Content
+                </button>
+              </div>
             </div>
 
             {/* Stats */}
@@ -740,6 +841,76 @@ export default function DashboardPage() {
             </div>
           </>
         )}
+
+        {/* ── VIDEO LIBRARY ── */}
+        {view === "library" && (() => {
+          const libraryItems = items.filter((i) => i.videoUrl || i.remotionVideoUrl);
+          return (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <div>
+                  <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Video Library</h1>
+                  <p style={{ color: "#888", margin: "4px 0 0" }}>All generated videos — saved between sessions</p>
+                </div>
+                <div style={{ fontSize: 14, color: "#666" }}>{libraryItems.length} video{libraryItems.length !== 1 ? "s" : ""}</div>
+              </div>
+
+              {libraryItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60, color: "#666" }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>📼</div>
+                  <div style={{ fontSize: 18, marginBottom: 8 }}>No videos yet</div>
+                  <div>Generated HeyGen and Remotion videos will appear here automatically</div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+                  {libraryItems.map((item) => {
+                    const finalUrl = item.remotionVideoUrl || item.videoUrl;
+                    return (
+                      <div key={item.id} style={{ background: "#111128", borderRadius: 12, overflow: "hidden", border: "1px solid #222" }}>
+                        <div style={{ position: "relative", background: "#000" }}>
+                          <video src={finalUrl || ""} controls style={{ width: "100%", maxHeight: 220, display: "block", objectFit: "cover" }} />
+                          {item.remotionVideoUrl && (
+                            <div style={{ position: "absolute", top: 8, right: 8, padding: "3px 8px", background: "#f59e0b", color: "#000", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                              + Remotion
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ padding: 14 }}>
+                          <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 15 }}>{item.title}</div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                            <span style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: (PLATFORM_COLORS[item.platform] || "#666") + "22", color: PLATFORM_COLORS[item.platform] || "#888" }}>
+                              {item.platform}
+                            </span>
+                            <span style={{ fontSize: 12, color: "#666" }}>{item.date}</span>
+                            {item.avatar && <span style={{ fontSize: 12, color: "#818cf8" }}>{item.avatar}</span>}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {item.remotionVideoUrl && (
+                              <a href={item.remotionVideoUrl} download={item.title.replace(/\s+/g,"-") + "-remotion.mp4"}
+                                style={{ flex: 1, padding: "7px 12px", background: "#f59e0b", color: "#000", borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+                                ⬇ Final Video
+                              </a>
+                            )}
+                            {item.videoUrl && (
+                              <a href={item.videoUrl} download={item.title.replace(/\s+/g,"-") + "-heygen.mp4"}
+                                style={{ flex: 1, padding: "7px 12px", background: "#1a1a3a", color: "#818cf8", border: "1px solid #818cf8", borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none", textAlign: "center" }}>
+                                ⬇ HeyGen
+                              </a>
+                            )}
+                            <button onClick={() => { setEditingItem(item); setView("generator"); }}
+                              style={{ padding: "7px 12px", background: "transparent", color: "#666", border: "1px solid #333", borderRadius: 6, fontSize: 13, cursor: "pointer" }}>
+                              Edit
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* ── REVIEW QUEUE ── */}
         {view === "review" && (
